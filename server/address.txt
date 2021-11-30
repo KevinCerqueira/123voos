@@ -1,0 +1,4 @@
+azul=localhost:8100
+gol=localhost:8200
+latam=localhost:8300
+avianca=localhost:8400

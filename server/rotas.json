@@ -1,0 +1,8 @@
+{
+	"id": 1,
+	"empresa_aeroporto_chegada": 1,
+	"empresa_aeroporto_partida": 2,
+	"distancia": 300,
+	"tempo": 120,
+	"valor": 1200
+}
