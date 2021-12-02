@@ -13,6 +13,7 @@
 """
 
 import os
+from posixpath import expanduser
 import sys
 import pymongo
 from pymongo import MongoClient
@@ -130,6 +131,24 @@ class DB:
 		except:
 			return None
 	
+	def updateRoute(self, id, params):
+		try:
+			_id = ObjectId(id)
+			self.routes.update_one({'_id': _id}, {'$set': params})
+			return True
+		except:
+			return False
+	
+	def confirmTicket(self, route_id: str):
+		try:
+			filled_chairs = int(self.findRoutes('id', route_id)[0]['filled_chairs']) + 1
+			if(self.updateRoute(route_id, {'filled_chairs': filled_chairs})):
+				return True
+			return False
+		except:
+			return False
+			
+			
 	def mountInternalGraph(self):
 		routes = self.getRoutes({})
 		airports = self.getAirports({})
@@ -160,12 +179,15 @@ if __name__ == "__main__":
 	# G = nx.petersen_graph()
 	# subax1 = plt.subplot(121)
 	# print (db.createRoute('61a83a0a6c63cdb68f866d77', '61a81fa1a3400dd9e312245e', {'total_chairs': 40, 'filled_chairs': 1, 'distance': 600, 'time': 60, 'value': 349.99}))
-	G = db.mountInternalGraph()	
-	pos = nx.spring_layout(G)
-	edge_labels = nx.get_edge_attributes(G, 'value')
-	nx.draw_networkx_edge_labels(G, pos, edge_labels)
-	nx.draw_networkx(G)
-	plt.show()
+	''''''
+	# G = db.mountInternalGraph()	
+	# pos = nx.spring_layout(G)
+	# edge_labels = nx.get_edge_attributes(G, 'value')
+	# nx.draw_networkx_edge_labels(G, pos, edge_labels)
+	# nx.draw_networkx(G)
+	# plt.show()
+	''''''
+	print(db.confirmTicket('61a819d5ce82b2941ebd8352'))
 	# nx.draw(G, with_labels=True, font_weight='bold')
 	# nx.draw_shell(G, nlist=[range(5, 10), range(5)], with_labels=True, font_weight='bold')
 	# nx.draw(G, with_labels=True)
