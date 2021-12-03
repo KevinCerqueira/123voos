@@ -141,8 +141,24 @@ class DB:
 	
 	def confirmTicket(self, route_id: str):
 		try:
-			filled_chairs = int(self.findRoutes('id', route_id)[0]['filled_chairs']) + 1
-			if(self.updateRoute(route_id, {'filled_chairs': filled_chairs})):
+			route = self.findRoutes('id', route_id)[0]
+			total_chairs = int(route['total_chairs'])
+			filled_chairs = int(route['filled_chairs']) + 1
+			if(filled_chairs > total_chairs):
+				return False
+			elif(self.updateRoute(route_id, {'filled_chairs': filled_chairs})):
+				return True
+			return False
+		except:
+			return False
+	
+	def disconfirmTicket(self, route_id: str):
+		try:
+			route = self.findRoutes('id', route_id)[0]
+			filled_chairs = int(route['filled_chairs']) - 1
+			if(filled_chairs == -1):
+				return False
+			elif(self.updateRoute(route_id, {'filled_chairs': filled_chairs})):
 				return True
 			return False
 		except:
@@ -170,8 +186,8 @@ class DB:
 			
 		return self.graph
 			
-if __name__ == "__main__":
-	db = DB('anil')
+# if __name__ == "__main__":
+# 	db = DB('anil')
 	# air1 = db.createAirport({'city': 'Belo Horizonte', 'name': 'Aeroporto de BH', 'uf': 'MG' ,'cep': '98797888'})
 	# air2 = db.createAirport({'city': 'Belém', 'name': 'Aeroporto de Belém', 'uf': 'PA' ,'cep': '79955789'})
 	# route = db.createRoute(air1, air2, {'total_chairs': 40, 'filled_chairs': 1, 'distance': 600, 'time': 60, 'value': 349.99})
@@ -187,7 +203,7 @@ if __name__ == "__main__":
 	# nx.draw_networkx(G)
 	# plt.show()
 	''''''
-	print(db.confirmTicket('61a819d5ce82b2941ebd8352'))
+	# print(db.confirmTicket('61a819d5ce82b2941ebd8352'))
 	# nx.draw(G, with_labels=True, font_weight='bold')
 	# nx.draw_shell(G, nlist=[range(5, 10), range(5)], with_labels=True, font_weight='bold')
 	# nx.draw(G, with_labels=True)
