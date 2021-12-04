@@ -6,22 +6,25 @@ import time
 HOST = 'localhost'
 PORT = 8000
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect((HOST, PORT))
 
 rota = 'close'
 
 request = '{} '.format(rota)
-
-client.sendall((request).encode('utf-8'))
-data = client.recv(8192)
-print('Msg', data.decode())
-client.close()
-
-client.connect((HOST, PORT))
-client.sendall((request).encode('utf-8'))
-data = client.recv(8192)
-print('Msg', data.decode())
+for i in [1,2,3]:
+	client1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	client2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	client3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	
-client.close()
+	client1.connect((HOST, 8200))
+	client2.connect((HOST, 8100))
+	client3.connect((HOST, 8000))
+
+	client1.sendall((request).encode('utf-8'))
+	client2.sendall((request).encode('utf-8'))
+	client3.sendall((request).encode('utf-8'))
+
+	client1.close()
+	client2.close()
+	client3.close()
+
 sys.exit()

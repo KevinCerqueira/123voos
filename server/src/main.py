@@ -47,7 +47,7 @@ class Main:
 	
 	# Verifica quem quer ser o coordenador
 	led = False
-	leader  = ''
+	leader  = None
 	
 	# Controla quando quero ser coordenador
 	ready_lead = False
@@ -59,7 +59,6 @@ class Main:
 		self.me = company
 		self.db = DB(company)
 		self.server_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.server_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.addr = self.readAddress(company)
 		self.server_send.bind(self.addr)
 		self.server_send.listen(5)
@@ -156,6 +155,15 @@ class Main:
 			self.electLeader(client, data)
 		elif(path == 'get-routes'):
 			self.sendRoutesToLed(client)
+		elif(path == 'who-leader'):
+			if(self.leading):
+				return self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
+			elif(self.leader != None):
+				print(self.leader)
+				return self.sendToClientOk(client, {'host': self.leader[0], 'port': self.leader[1]})
+			else:
+				return self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
+				
 		elif(path == 'send-routes'):
 			pass
 		elif(path == 'confirm-route'):
@@ -171,7 +179,7 @@ class Main:
 		elif(path == 'close'):
 			self.closeSocket(client)
 		else:
-			self.routeNotFound()
+			self.routeNotFound(client)
 		return client.close()
 	
 	# Fecha a conexão do cliente
@@ -202,11 +210,12 @@ class Main:
 		print('{}:{} NOVO LIDER'.format(data['host'], data['port']))
 		self.leader = (data['host'], data['port'])
 		client.close()
-		self.server_receive.connect(self.leader)
-		self.server_receive.sendall(("get-routes ").encode('utf-8'))
-		routes = self.server_receive.recv(8192)
+		leader_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		leader_receive.connect(self.leader)
+		leader_receive.sendall(("get-routes ").encode('utf-8'))
+		routes = leader_receive.recv(8192)
 		print(routes)
-		self.server_receive.close()
+		leader_receive.close()
 		self.led = False
 	
 	def sendRoutesToLed(self, client):
@@ -221,13 +230,16 @@ class Main:
 		print(companies)
 		self.count_companies = len(companies)
 		self.leading = True
+		self.leader = (self.addr[0], self.addr[1])
 		for company in companies:
 			print('CONECTANDO: {}:{}'.format(company[0], company[1]))
 			try:
-				self.server_receive.connect(company)
-				self.server_receive.sendall(('to-lead {}'.format(json.dumps({'host': self.addr[0], 'port': self.addr[1]}))).encode('utf-8'))
-				self.server_receive.close()
-			except:
+				led_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				led_receive.connect(company)
+				led_receive.sendall(('to-lead {}'.format(json.dumps({'host': self.addr[0], 'port': self.addr[1]}))).encode('utf-8'))
+				led_receive.close()
+			except Exception as e:
+				print('Impossivel de enviar requerimento: {}'.format(e))
 				self.count_companies = self.count_companies - 1
 		self.ready_lead = False
 	
