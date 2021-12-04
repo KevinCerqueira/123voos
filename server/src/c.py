@@ -4,7 +4,7 @@ import sys
 import time
 
 HOST = 'localhost'
-PORT = 8000
+PORT = 8100
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((HOST, PORT))
@@ -23,8 +23,8 @@ send = {'route': '61a819d5ce82b2941ebd8352'}
 # rota = '/get/patient/0'
 # rota = '/update/patient'
 # rota = '/register/patient'
-# rota = 'confirm-route'
-rota = 'close'
+rota = 'confirm-route'
+# rota = 'close'
 # rota = '/delete/patient'
 # host = HOST+':'+str(PORT)
 # auth = 'Authorization: Bearer a2V2aW4yOjEyMw=='
