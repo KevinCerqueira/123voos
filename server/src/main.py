@@ -17,13 +17,15 @@ import json
 import sys
 import os
 import threading
-import base64
-import re
 import platform
+import time
+import random
 
 from collections import deque
 
 class Main:
+	
+	starting = False
 	
 	# Endereços dos servidores cadastrados
 	addr = None
@@ -45,26 +47,53 @@ class Main:
 	# Verifica se deve fechar o servidor
 	close = False
 	
-	# Verifica quem quer ser o coordenador
+	# Verifica quem quer ser o lider
 	led = False
 	leader  = None
 	
-	# Controla quando quero ser coordenador
-	ready_lead = False
-	leading = False
+	# Controla quando quero ser lider
+	ready_lead = False # Pronto para liderar
+	leading = False # Liderando
+	# Quantidade de servidores que vou receber as requisições quando me tornar líder
 	count_companies = 0
+	
+	all_routes = None
 	
 	def __init__(self, company):
 		# Iniciando o Server
 		self.me = company
+		
+		print('INICIANDO SERVIDOR, POR FAVOR AGUARDE...')
+		time.sleep(random.randint(1, 3))
+		
+		print('CONECTANDO AO BANCO DE DADOS...')
 		self.db = DB(company)
+		time.sleep(random.randint(3, 4))
 		self.server_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		
+		print('LENDO ALGUNS ARQUIVOS...')
 		self.addr = self.readAddress(company)
+		
+		print('ABRINDO PORTAS DO SERVIDOR...')
 		self.server_send.bind(self.addr)
 		self.server_send.listen(5)
+		time.sleep(random.randint(2, 5))
+		
+		print('SERVIDOR PRONTO PARA INICAR...')
+		time.sleep(random.randint(1, 3))
+		
+		os.system('clear')
+		print('INICIANDO...')
 		self.queue_request = deque()
 		self.thread_request = threading.Thread(target=self.queueRequest)
 		self.thread_request.start()
+		time.sleep(random.randint(3, 6))
+
+		# self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': {'company': company, 'routes': self.db.getRoutes({})}}
+		self.ready_lead = True
+		self.starting = True
+		self.wantToLead()
+		
 		print('SERVER {} ON AT {}:{}\n'.format(company, self.addr[0], self.addr[1]))
 		self.work()
 	
@@ -110,10 +139,27 @@ class Main:
 	
 	# Trata os dados recebidos
 	def receptor(self, client):
+		request_raw = client.recv(8192)
+		
+		path, data = self.cleanRequest(request_raw)
+		
+		# if(path == 'to-lead' and not self.ready_lead):
+		if(path == 'to-lead' and not self.led):
+			# Adicionando pedido para liderar no começo da fila
+			self.queue_request.appendleft({'client': client, 'path': path, 'data': data})
+		elif(path == 'get-routes' and ((not self.led and self.leading) or self.starting)):
+			# Adicionando pedido dos liderados no começo da fila
+			self.queue_request.appendleft({'client': client, 'path': path, 'data': data})	
+		elif(not (path in ['get-routes', 'to-lead'])):
+			# Adicionando a requisição no final da fila de requisições
+			self.queue_request.append({'client': client, 'path': path, 'data': data})
+		else:
+			self.sendToClientError(client, 'Acho que estamos com alguns problemas...')
+
+	# Limpa a requisição
+	def cleanRequest(self, request_raw):
 		path = ''
 		data = None
-		
-		request_raw = client.recv(8192)
 		
 		request_clean = str(request_raw.decode('utf-8'))
 		
@@ -124,32 +170,24 @@ class Main:
 		for index in request_clean:
 			if(index == '{'):
 				data = json.loads(request_clean[request_clean.find('{') :])
-		
-		if(path == 'to-lead' and not self.ready_lead):
-			# Adicionando pedido para liderar no começo da fila
-			self.queue_request.appendleft({'client': client, 'path': path, 'data': data})
-		elif(path == 'get-routes' and not self.led and self.leading):
-			# Adicionando pedido dos liderados no começo da fila
-			self.queue_request.appendleft({'client': client, 'path': path, 'data': data})	
-		elif(not (path in ['get-routes', 'to-lead'])):
-			# Adicionando a requisição no final da fila de requisições
-			self.queue_request.append({'client': client, 'path': path, 'data': data})
-		else:
-			client.close()
+		print(path, data)
+		return (path, data)
+
 	# Consome a fila de requisições
 	def queueRequest(self):
 		while not (self.close):
 			if(len(self.queue_request) > 0 and not (self.ready_lead and not self.led)):
-				print('conn: ' + str(len(self.queue_request)))
+				# print('conn: ' + str(len(self.queue_request)))
 				request = self.queue_request.popleft()
 				self.routing(request['client'], request['path'], request['data'])
 			elif(self.ready_lead and not self.led):
 				self.wantToLead()
 		return sys.exit()
+		
 	# Função responsável pelo roteamente, identifica os metodos e as rotas requisitadas
 	def routing(self, client, path, data):
 
-		print({'client': client, 'path': path, 'data': data})
+		# print({'client': client, 'path': path, 'data': data})
 		
 		if(path == 'to-lead'):
 			self.electLeader(client, data)
@@ -159,35 +197,24 @@ class Main:
 			if(self.leading):
 				return self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
 			elif(self.leader != None):
-				print(self.leader)
 				return self.sendToClientOk(client, {'host': self.leader[0], 'port': self.leader[1]})
 			else:
 				return self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
 				
 		elif(path == 'send-routes'):
-			pass
+			self.sendToClientOk(client, self.all_routes)
 		elif(path == 'confirm-route'):
 			self.confirmRoute(client, data)
-			self.ready_lead = True
 		elif(path == 'disconfirm-route'):
 			self.disconfirmRoute(client, data)
-			self.ready_lead = True
-		elif(path == 'graph'):
-			pass
-		elif(path == 'graph-general'):
-			pass
 		elif(path == 'close'):
-			self.closeSocket(client)
+			self.closeSocket()
 		else:
 			self.routeNotFound(client)
 		return client.close()
 	
-	# Fecha a conexão do cliente
-	def closeConnection(self, client):
-		client.close()
-	
 	# Desliga o servidor
-	def closeSocket(self, client):
+	def closeSocket(self):
 		print('SERVIDOR FECHARA AO TERMINAR AS CONEXOES EXISTENTES')
 		self.close = True
 	
@@ -205,6 +232,7 @@ class Main:
 		response = json.dumps({'success': False, 'error': msg})
 		return client.sendall(bytes(response.encode('utf-8')))
 	
+	# Eleger líder
 	def electLeader(self, client, data):
 		self.led = True
 		print('{}:{} NOVO LIDER'.format(data['host'], data['port']))
@@ -213,45 +241,63 @@ class Main:
 		leader_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		leader_receive.connect(self.leader)
 		leader_receive.sendall(("get-routes ").encode('utf-8'))
-		routes = leader_receive.recv(8192)
-		print(routes)
+		response = leader_receive.recv(8192)
+		path, data = self.cleanRequest(response)
+		self.starting = False
+		print('DATA:------>', data)
+		self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
+		companies = []
+		companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
+		companies.append(data['routes'])
+		self.all_routes['companies'] = companies
+		print('<------------->')
+		print(self.all_routes)
+		print('<------------->')
 		leader_receive.close()
 		self.led = False
 	
+	# Enviado as rotas para os liderados
 	def sendRoutesToLed(self, client):
+		self.starting = False
 		routes = self.db.getRoutes({})
-		self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1], 'routes': routes})
+		self.sendToClientOk(client, {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': routes})
 		self.count_companies = self.count_companies - 1
 		if(self.count_companies <= 0):
 			self.leading = False
 	
+	# Quero ser líder!
 	def wantToLead(self):
-		companies = self.readAddressNot(self.me)
-		print(companies)
-		self.count_companies = len(companies)
-		self.leading = True
-		self.leader = (self.addr[0], self.addr[1])
-		for company in companies:
-			print('CONECTANDO: {}:{}'.format(company[0], company[1]))
-			try:
-				led_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				led_receive.connect(company)
-				led_receive.sendall(('to-lead {}'.format(json.dumps({'host': self.addr[0], 'port': self.addr[1]}))).encode('utf-8'))
-				led_receive.close()
-			except Exception as e:
-				print('Impossivel de enviar requerimento: {}'.format(e))
-				self.count_companies = self.count_companies - 1
-		self.ready_lead = False
+		if not self.led:
+			companies = self.readAddressNot(self.me)
+			self.count_companies = len(companies)
+			self.leading = True
+			self.leader = (self.addr[0], self.addr[1])
+			for company in companies:
+				print('CONECTANDO: {}:{}'.format(company[0], company[1]))
+				try:
+					led_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					led_receive.connect(company)
+					led_receive.sendall(('to-lead {}'.format(json.dumps({'host': self.addr[0], 'port': self.addr[1]}))).encode('utf-8'))
+					led_receive.close()
+				except Exception as e:
+					print('Impossivel de enviar requerimento: {}'.format(e))
+					self.count_companies = self.count_companies - 1
+			self.ready_lead = False
+			
 	
+	# Confirmando rota
 	def confirmRoute(self, client, data):
 		confirm = self.db.confirmTicket(data['route'])
 		if confirm:
+			self.ready_lead = True
 			return self.sendToClientOk(client, "Passagem confirmada com sucesso!")
 		return self.sendToClientError(client, "Nao ha cadeiras mais disponiveis.")
 	
+	# Desconfirmando rota
 	def disconfirmRoute(self, client, data):
-		confirm = self.db.disconfirmTicket(data['route'])
-		if confirm:
+		disconfirm = self.db.disconfirmTicket(data['route'])
+		if disconfirm:
+			self.ready_lead = True
 			return self.sendToClientOk(client, "Passagem desconfirmada com sucesso!")
 		return self.sendToClientError(client, "Nao ha cadeiras nao disponiveis.")
 				

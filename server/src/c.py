@@ -4,7 +4,7 @@ import sys
 import time
 
 HOST = 'localhost'
-PORT = 8200
+PORT = 8000
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((HOST, PORT))
@@ -16,6 +16,7 @@ client.connect((HOST, PORT))
 # send = {'id': '0', 'value': 89}
 # send = {'nome': 'Paciente'+str(i), 'idade': 70 - 10}
 send = {'route': '61a819d5ce82b2941ebd8352'}
+# send = {'route': '61a819d5ce82b2941ebd8352'}
 # send = {'id': 0}
 # send = {}
 # client.sendall(str.encode('Kevin'))
@@ -23,8 +24,8 @@ send = {'route': '61a819d5ce82b2941ebd8352'}
 # rota = '/get/patient/0'
 # rota = '/update/patient'
 # rota = '/register/patient'
-# rota = 'confirm-route'
-rota = 'who-leader'
+rota = 'confirm-route'
+# rota = 'who-leader'
 # rota = 'close'
 # rota = '/delete/patient'
 # host = HOST+':'+str(PORT)

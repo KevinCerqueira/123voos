@@ -101,7 +101,30 @@ class DB:
 		try:
 			routes = []
 			for route in self.routes.find(param).sort('city', pymongo.ASCENDING):
-				routes.append({'id': str(route['_id']), 'start': str(route['start']), 'end': str(route['end']), 'total_chairs': route['total_chairs'], 'distance': route['distance'], 'filled_chairs': route['filled_chairs'], 'time': route['time'], 'value': route['value']})
+				airport_start = self.getAirports({'_id': route['start']}) 
+				airport_end = self.getAirports({'_id': route['end']}) 
+				
+				routes.append({
+					'id': str(route['_id']), 
+					'start': {
+						'id': str(route['start']), 
+						'name': airport_start[0]['name'], 
+						'city': airport_start[0]['city'], 
+						'uf': airport_start[0]['uf'], 
+						'cep': airport_start[0]['cep']
+					},
+					'end': {
+						'id': str(route['end']),
+						'name': airport_end[0]['name'], 
+						'city': airport_end[0]['city'], 
+						'uf': airport_end[0]['uf'], 
+						'cep': airport_end[0]['cep']
+					},
+					'total_chairs': route['total_chairs'], 
+					'distance': route['distance'], 
+					'filled_chairs': route['filled_chairs'], 
+					'time': route['time'], 'value': route['value']
+					})
 			return routes
 		except:
 			return None
