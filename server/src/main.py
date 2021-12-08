@@ -90,9 +90,9 @@ class Main:
 		time.sleep(random.randint(3, 6))
 
 		# self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': {'company': company, 'routes': self.db.getRoutes({})}}
-		self.ready_lead = True
-		self.starting = True
-		self.wantToLead()
+		# self.ready_lead = True
+		# self.starting = True
+		# self.wantToLead()
 		
 		print('SERVER {} ON AT {}:{}\n'.format(company, self.addr[0], self.addr[1]))
 		self.work()
@@ -170,7 +170,7 @@ class Main:
 		for index in request_clean:
 			if(index == '{'):
 				data = json.loads(request_clean[request_clean.find('{') :])
-		print(path, data)
+		# print(path, data)
 		return (path, data)
 
 	# Consome a fila de requisições
@@ -195,18 +195,20 @@ class Main:
 			self.sendRoutesToLed(client)
 		elif(path == 'who-leader'):
 			if(self.leading):
-				return self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
+				self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
 			elif(self.leader != None):
-				return self.sendToClientOk(client, {'host': self.leader[0], 'port': self.leader[1]})
+				self.sendToClientOk(client, {'host': self.leader[0], 'port': self.leader[1]})
 			else:
-				return self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
+				self.sendToClientOk(client, {'host': self.addr[0], 'port': self.addr[1]})
 				
-		elif(path == 'send-routes'):
-			self.sendToClientOk(client, self.all_routes)
+		elif(path == 'get-all-routes'):
+			self.getAllRoutes(client)
 		elif(path == 'confirm-route'):
 			self.confirmRoute(client, data)
 		elif(path == 'disconfirm-route'):
 			self.disconfirmRoute(client, data)
+		elif(path == 'get-route'):
+			self.findRoute(client, data)
 		elif(path == 'close'):
 			self.closeSocket()
 		else:
@@ -224,6 +226,7 @@ class Main:
 	
 	# Envia dados para o cliente em caso de sucesso
 	def sendToClientOk(self, client, obj):
+		print(obj)
 		response = json.dumps({'success': True, 'data': obj})
 		return client.sendall(bytes(response.encode('utf-8')))
 	
@@ -244,15 +247,15 @@ class Main:
 		response = leader_receive.recv(8192)
 		path, data = self.cleanRequest(response)
 		self.starting = False
-		print('DATA:------>', data)
+		# print('DATA:------>', data)
 		self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
 		companies = []
 		companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
 		companies.append(data['routes'])
 		self.all_routes['companies'] = companies
-		print('<------------->')
-		print(self.all_routes)
-		print('<------------->')
+		# print('<------------->')
+		# print(self.all_routes)
+		# print('<------------->')
 		leader_receive.close()
 		self.led = False
 	
@@ -300,6 +303,20 @@ class Main:
 			self.ready_lead = True
 			return self.sendToClientOk(client, "Passagem desconfirmada com sucesso!")
 		return self.sendToClientError(client, "Nao ha cadeiras nao disponiveis.")
+	
+	# Pegar todas as rotas
+	def getAllRoutes(self, client):
+		self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
+		companies = []
+		companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
+		self.all_routes['companies'] = companies
+		return self.sendToClientOk(client, self.all_routes)
+		
+	def findRoute(self, client, data):
+		route = self.db.findRoutes(data['type'], data['id'])
+		if(route != None):
+			return self.sendToClientOk(client, route)
+		return self.sendToClientError('Rota nao encontrada')
 				
 if __name__ == '__main__':
 	c = str(input('company: '))

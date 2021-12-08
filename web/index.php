@@ -15,6 +15,7 @@
  */
 define('MYPATH', '');
 include_once('pages/templates/header.php');
+include_once('controllers/routes.php');
 ?>
 <style>
 	#menu .btn {
@@ -70,13 +71,157 @@ include_once('pages/templates/header.php');
 		</div>
 		<div id="menu" class="text-center bg-white p-3 rounded shadow">
 			<div class="row mb-3">
-				<div class="col-md-4">
-					<button class="btn btn-primary btn-block" data-bs-toggle="modal" data-bs-target="#register-patient">
-						<p class="h2">Rotas</p>
-					</button>
-				</div>
+				<?php if ($all_routes) { //var_dump($all_routes->companies[0]->routes[0]->start->cep);die(); 
+				?>
+					<div class="col-md-5">
+						<div class="row">
+							<div class="col-md-12"><label for="name-patient">Selecione a cidade de partida:</label>
+								<select id="start" required name="start">
+									<option selected id="default" value=""></option>
+									<?php
+									foreach ($all_routes->companies as $company) {
+										foreach ($company->routes as $key => $route) {
+									?>
+											<option type="<?php echo 'start'; ?>" cep="<?php echo $route->start->cep; ?>" host="<?php echo $company->host; ?>" port="<?php echo $company->port; ?>" value="<?php echo $route->start->id; ?>">
+												<?php echo $route->start->city . ' | ' . $route->start->cep . ' | ' . $route->start->name; ?>
+											</option>
+											<option type="<?php echo 'end'; ?>" cep="<?php echo $route->end->cep; ?>" host="<?php echo $company->host; ?>" port="<?php echo $company->port; ?>" value="<?php echo $route->end->id; ?>">
+												<?php echo $route->end->city . ' | ' . $route->end->cep . ' | ' . $route->end->name; ?>
+											</option>
+									<?php }
+									} ?>
+								</select>
+							</div>
+						</div>
+					</div>
+					<div class="col-md-5">
+						<div class="row">
+							<div class="col-md-12"><label for="name-patient">Selecione a cidade de partida:</label>
+								<select disabled id="end" required name="end">
+									<option selected id="default" value=""></option>
+								</select>
+							</div>
+						</div>
+					</div>
+					<div class="col-md-2">
+						<div class="pt-4 rounded-3">
+							<button disabled class="btn-success" id="btn-find">Buscar</button>
+						</div>
+					</div>
+				<?php } else { ?>
+					<div hidden id="alert-error" class="alert alert-danger" role="alert">
+						<p id="alert-text-error" class="h5 m-0">Não há rotas para serem mostradas.</p>
+					</div>
+				<?php } ?>
+			</div>
+			<div>
+				<p hidden id="loading" class="text-center-m-0 h2">carregando...</p>
+				<div id="list-routes"></div>
 			</div>
 		</div>
 	</div>
 </div>
+<script>
+	$(document).ready(function() {
+		$('#start').on('select2:select', (event) => {
+			// console.log(($('#start').find(':selected').attr('cep')))
+			$.ajax({
+				type: "GET",
+				url: "end.php?cep=" + $('#start').find(':selected').attr('cep'),
+				beforeSend: (data) => {
+					$('#btn-find').attr('disabled', 'true');
+					$('#end').attr('disabled', 'true');
+				},
+				success: function(data) {
+					$('#end').html(data);
+					$('#end').removeAttr('disabled');
+					$('#btn-find').removeAttr('disabled');
+				},
+				error: (data) => {
+					alert('Erro na requisição');
+					$('#end').attr('disabled', 'true');
+					$('#btn-find').attr('disabled', 'true');
+				}
+			});
+		});
+		$('#btn-find').click((event) => {
+			// console.log(($('#start').find(':selected').attr('cep')))
+			$.ajax({
+				type: "GET",
+				url: "list_routes.php?start=" + $('#start').find(':selected').val() + '&end=' + $('#end').find(':selected').val(),
+				beforeSend: (data) => {
+					$('#loading').removeAttr('hidden');
+				},
+				success: function(data) {
+					$('#loading').attr('hidden', 'true');
+					$('#list-routes').html(data);
+				},
+				error: (data) => {
+					$('#loading').removeAttr('hidden');
+
+				}
+			});
+		});
+	});
+	$('#start').select2({
+		placeholder: 'Selecione uma rota',
+		dropdownAutoWidth: true,
+		escapeMarkup: function(text) {
+			return text;
+		},
+		width: "100%",
+		language: "pt-BR",
+		cache: true
+	});
+
+	$('#end').select2({
+		placeholder: 'Selecione uma rota de chegada',
+		dropdownAutoWidth: true,
+		escapeMarkup: function(text) {
+			return text;
+		},
+		width: "100%",
+		language: "pt-BR",
+		cache: true
+	});
+	// $('#get-route').submit(function(event) {
+	// 		event.preventDefault();
+	// 		let type = 'end';
+	// 		let route = $('#start-route').find(':selected').val();
+	// 		$.ajax({
+	// 			type: "POST",
+	// 			url: "<?php echo MYPATH; ?>Controllers/delete_patient.php",
+	// 			data: {'type': type, 'route': route},
+	// 			beforeSend: function() {
+	// 				$('#btn-send').attr('hidden', '');
+	// 			},
+	// 			success: function(data) {
+	// 				response = JSON.parse(data);
+	// 				if (response.success) {
+	// 					Swal.fire(
+	// 						'Rota confirmada! ',
+	// 						'',
+	// 						'success'
+	// 					);
+	// 				} else {
+	// 					Swal.fire(
+	// 						'Houve um erro ao deletar o paciente.',
+	// 						'Erro: ' + response.error,
+	// 						'error'
+	// 					);
+	// 				}
+	// 			},
+	// 			error: function(data) {
+	// 				Swal.fire(
+	// 					'Parece que estamos offline, chame o TI.',
+	// 					'',
+	// 					'error'
+	// 				);
+	// 			},
+	// 			complete: function() {
+	// 				$('#btn-send').removeAttr('disabled');
+	// 			}
+	// 		});
+	// 	});
+</script>
 <?php include_once('pages/templates/footer.php'); ?>
