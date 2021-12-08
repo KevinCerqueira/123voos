@@ -73,8 +73,9 @@ class Main:
 		
 		print('LENDO ALGUNS ARQUIVOS...')
 		self.addr = self.readAddress(company)
+		start = self.readCtrl()
 		
-		print('ABRINDO PORTAS DO SERVIDOR...')
+		print('ABRINDO PORTAS DO SERVIDOR... {}:{}'.format(self.addr[0], self.addr[1]))
 		self.server_send.bind(self.addr)
 		self.server_send.listen(5)
 		time.sleep(random.randint(2, 5))
@@ -93,15 +94,19 @@ class Main:
 		# self.ready_lead = True
 		# self.starting = True
 		# self.wantToLead()
-		
+		if(not start):
+			self.ready_lead = True
+			self.wantToLead()
+			
 		print('SERVER {} ON AT {}:{}\n'.format(company, self.addr[0], self.addr[1]))
+		
 		self.work()
 	
 	def readAddress(self, company):
 		addrs = '\\addr.txt'
 		if(platform.system() == 'Linux'):
 			addrs = '/addr.txt'
-			
+
 		with open(os.path.dirname(os.path.realpath(__file__)) + addrs, 'r', encoding='utf-8') as file_addrs:
 			line = file_addrs.readline()
 			while(line):
@@ -109,7 +114,23 @@ class Main:
 				if(content[0] == company):
 					return (content[1].split(':')[0], int(content[1].split(':')[1]))
 				line = file_addrs.readline()
-	
+		
+	def readCtrl(self):
+		ctrl = '\\.ctrl'
+		if(platform.system() == 'Linux'):
+			ctrl = '/.ctrl'
+		
+		start = True
+		with open(os.path.dirname(os.path.realpath(__file__)) + ctrl, 'r', encoding='utf-8') as file_ctrl:
+			line = file_ctrl.readline()
+			if(line == 'false'):
+				start = False
+		
+		if(not start):			
+			with open(os.path.dirname(os.path.realpath(__file__)) + ctrl, 'w', encoding='utf-8') as file_ctrl:
+				line = file_ctrl.write('true')
+		return start
+				
 	def readAddressNot(self, not_company):
 		addrs = '\\addr.txt'
 		if(platform.system() == 'Linux'):
@@ -162,7 +183,7 @@ class Main:
 		data = None
 		
 		request_clean = str(request_raw.decode('utf-8'))
-		
+		# print(request_clean)
 		content_parts = request_clean.split(' ')
 		path = content_parts[0].replace(' ', '')
 		
@@ -170,7 +191,7 @@ class Main:
 		for index in request_clean:
 			if(index == '{'):
 				data = json.loads(request_clean[request_clean.find('{') :])
-		# print(path, data)
+		
 		return (path, data)
 
 	# Consome a fila de requisições
@@ -226,7 +247,7 @@ class Main:
 	
 	# Envia dados para o cliente em caso de sucesso
 	def sendToClientOk(self, client, obj):
-		print(obj)
+		# print(obj)
 		response = json.dumps({'success': True, 'data': obj})
 		return client.sendall(bytes(response.encode('utf-8')))
 	
@@ -245,13 +266,14 @@ class Main:
 		leader_receive.connect(self.leader)
 		leader_receive.sendall(("get-routes ").encode('utf-8'))
 		response = leader_receive.recv(8192)
+		# print(response)
 		path, data = self.cleanRequest(response)
 		self.starting = False
 		# print('DATA:------>', data)
 		self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
 		companies = []
 		companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
-		companies.append(data['routes'])
+		companies.append(data['data']['routes'])
 		self.all_routes['companies'] = companies
 		# print('<------------->')
 		# print(self.all_routes)
