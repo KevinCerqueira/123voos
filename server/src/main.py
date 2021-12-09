@@ -63,13 +63,10 @@ class Main:
 	def __init__(self, company):
 		# Iniciando o Server
 		self.me = company
-		# return self.readAddressNot(company)
 		print('INICIANDO SERVIDOR, POR FAVOR AGUARDE...')
-		# time.sleep(random.randint(1, 3))
 		
 		print('CONECTANDO AO BANCO DE DADOS...')
 		self.db = DB(company)
-		# time.sleep(random.randint(3, 4))
 		self.server_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		
 		print('LENDO ALGUNS ARQUIVOS...')
@@ -84,11 +81,8 @@ class Main:
 		print('ABRINDO PORTAS DO SERVIDOR... {}:{}'.format(self.addr[0], self.addr[1]))
 		self.server_send.bind(self.addr)
 		self.server_send.listen(5)
-		# time.sleep(random.randint(2, 5))
 		
 		print('SERVIDOR PRONTO PARA INICAR...')
-		# time.sleep(random.randint(1, 3))
-		
 		
 		print('INICIANDO...')
 		self.queue_request = deque()
@@ -97,18 +91,12 @@ class Main:
 		self.queue_response = deque()
 		self.thread_response = threading.Thread(target=self.queueResponse)
 		self.thread_response.start()
-		
-
-		# self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': {'company': company, 'routes': self.db.getRoutes({})}}
-		# self.ready_lead = True
-		# self.starting = True
-		# self.wantToLead()
-		
 			
 		print('SERVER {} ON AT {}:{}\n'.format(company, self.addr[0], self.addr[1]))
 		
 		self.work()
 	
+	# Ler o arquivo com os endereços dos servidores
 	def readAddress(self, company):
 		addrs = '\\addr.txt'
 		if(platform.system() == 'Linux'):
@@ -121,7 +109,8 @@ class Main:
 				if(content[0] == company):
 					return (content[1].split(':')[0], int(content[1].split(':')[1]))
 				line = file_addrs.readline()
-		
+	
+	# Ler o arquivo de controle
 	def readCtrl(self):
 		ctrl = '\\.ctrl'
 		if(platform.system() == 'Linux'):
@@ -137,7 +126,8 @@ class Main:
 			with open(os.path.dirname(os.path.realpath(__file__)) + ctrl, 'w', encoding='utf-8') as file_ctrl:
 				line = file_ctrl.write('true')
 		return start
-				
+	
+	# Ler todos os endereços de todos os servidores exceto o passado por parametro		
 	def readAddressNot(self, not_company):
 		addrs = '\\addr.txt'
 		if(platform.system() == 'Linux'):
@@ -150,8 +140,6 @@ class Main:
 				if(content[0] != not_company and content[0] != 'default'):
 					companies.append((content[1].split(':')[0], int(content[1].split(':')[1])))
 				line = file_addrs.readline()
-		# print(companies)
-		# sys.exit()
 		return companies
 		
 	# Função principal, onde o servidor irá receber as conexões
@@ -173,7 +161,6 @@ class Main:
 		
 		path, data = self.cleanRequest(request_raw)
 		
-		# if(path == 'to-lead' and not self.ready_lead):
 		if(path == 'to-lead' and not self.led):
 			# Adicionando pedido para liderar no começo da fila
 			self.queue_response.appendleft({'client': client, 'path': path, 'data': data})
@@ -192,9 +179,7 @@ class Main:
 	def cleanRequest(self, request_raw):
 		path = ''
 		data = None
-		# print(request_raw)
 		request_clean = str(request_raw.decode('utf-8'))
-		# print(request_clean)
 		content_parts = request_clean.split(' ')
 		path = content_parts[0].replace(' ', '')
 		
@@ -209,7 +194,6 @@ class Main:
 	def queueRequest(self):
 		while not (self.close):
 			if(len(self.queue_request) > 0 and not (self.ready_lead and not self.led)):
-				# print('conn: ' + str(len(self.queue_request)))
 				request = self.queue_request.popleft()
 				self.routing(request['client'], request['path'], request['data'])
 			elif(self.ready_lead and not self.led):
@@ -220,15 +204,12 @@ class Main:
 	def queueResponse(self):
 		while not (self.close):
 			if(len(self.queue_response) > 0):
-				# print('conn: ' + str(len(self.queue_response)))
 				request = self.queue_response.popleft()
 				self.routing(request['client'], request['path'], request['data'])
 		return sys.exit()
 		
 	# Função responsável pelo roteamente, identifica os metodos e as rotas requisitadas
 	def routing(self, client, path, data):
-
-		# print({'client': client, 'path': path, 'data': data})
 		
 		if(path == 'to-lead'):
 			self.electLeader(client, data)
@@ -267,7 +248,6 @@ class Main:
 	
 	# Envia dados para o cliente em caso de sucesso
 	def sendToClientOk(self, client, obj):
-		# print(obj)
 		response = json.dumps({'success': True, 'data': obj})
 		return client.sendall(bytes(response.encode('utf-8')))
 	
