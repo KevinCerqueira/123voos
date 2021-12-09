@@ -70,15 +70,15 @@ python main.py
 - Dashboard: 
     - ![dashboard](https://github.com/kevincerqueira/123voos/blob/main/telas/1_inicial.png?raw=true)
 - Selecionando partida:
-    - ![partida](https://github.com/kevincerqueira/simcov2/blob/main/telas/2_selecionando_cidade_inicial.png?raw=true)
+    - ![partida](https://github.com/kevincerqueira/123voos/blob/main/telas/2_selecionando_cidade_inicial.png?raw=true)
 - Selecionando chegada:
-    - ![chegada](https://github.com/kevincerqueira/simcov2/blob/main/telas/3_selecionando_cidade_final.png?raw=true)
+    - ![chegada](https://github.com/kevincerqueira/123voos/blob/main/telas/3_selecionando_cidade_final.png?raw=true)
 - Carregando busca:
-    - ![carregando](https://github.com/kevincerqueira/simcov2/blob/main/telas/4_carregando.png?raw=true)
+    - ![carregando](https://github.com/kevincerqueira/123voos/blob/main/telas/4_carregando.png?raw=true)
 - Resultados da busca:
-    - ![busca](https://github.com/kevincerqueira/simcov2/blob/main/telas/5_busca_carregada.png?raw=true)
+    - ![busca](https://github.com/kevincerqueira/123voos/blob/main/telas/5_busca_carregada.png?raw=true)
 - Confirmando passagem:
-    - ![confirmando](https://github.com/kevincerqueira/simcov2/blob/main/telas/6_confirmando_rota.png?raw=true)
+    - ![confirmando](https://github.com/kevincerqueira/123voos/blob/main/telas/6_confirmando_rota.png?raw=true)
 - Desconfirmando passagem:
-    - ![desconfirmando](https://github.com/kevincerqueira/simcov2/blob/main/telas/7_desconfirmando_rota.png?raw=true)
+    - ![desconfirmando](https://github.com/kevincerqueira/123voos/blob/main/telas/7_desconfirmando_rota.png?raw=true)
 
