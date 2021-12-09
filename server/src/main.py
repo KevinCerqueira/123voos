@@ -52,6 +52,7 @@ class Main:
 	leader  = None
 	
 	# Controla quando quero ser lider
+	ready_send = False # Pronto para enviar
 	ready_lead = False # Pronto para liderar
 	leading = False # Liderando
 	# Quantidade de servidores que vou receber as requisições quando me tornar líder
@@ -62,41 +63,47 @@ class Main:
 	def __init__(self, company):
 		# Iniciando o Server
 		self.me = company
-		
+		# return self.readAddressNot(company)
 		print('INICIANDO SERVIDOR, POR FAVOR AGUARDE...')
-		time.sleep(random.randint(1, 3))
+		# time.sleep(random.randint(1, 3))
 		
 		print('CONECTANDO AO BANCO DE DADOS...')
 		self.db = DB(company)
-		time.sleep(random.randint(3, 4))
+		# time.sleep(random.randint(3, 4))
 		self.server_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		
 		print('LENDO ALGUNS ARQUIVOS...')
 		self.addr = self.readAddress(company)
 		start = self.readCtrl()
+		os.system('clear')
+		if(not start):
+			self.ready_lead = True
+			time.sleep(4)
+			self.wantToLead()
 		
 		print('ABRINDO PORTAS DO SERVIDOR... {}:{}'.format(self.addr[0], self.addr[1]))
 		self.server_send.bind(self.addr)
 		self.server_send.listen(5)
-		time.sleep(random.randint(2, 5))
+		# time.sleep(random.randint(2, 5))
 		
 		print('SERVIDOR PRONTO PARA INICAR...')
-		time.sleep(random.randint(1, 3))
+		# time.sleep(random.randint(1, 3))
 		
-		os.system('clear')
+		
 		print('INICIANDO...')
 		self.queue_request = deque()
 		self.thread_request = threading.Thread(target=self.queueRequest)
 		self.thread_request.start()
-		time.sleep(random.randint(3, 6))
+		self.queue_response = deque()
+		self.thread_response = threading.Thread(target=self.queueResponse)
+		self.thread_response.start()
+		
 
 		# self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': {'company': company, 'routes': self.db.getRoutes({})}}
 		# self.ready_lead = True
 		# self.starting = True
 		# self.wantToLead()
-		if(not start):
-			self.ready_lead = True
-			self.wantToLead()
+		
 			
 		print('SERVER {} ON AT {}:{}\n'.format(company, self.addr[0], self.addr[1]))
 		
@@ -140,9 +147,11 @@ class Main:
 			line = file_addrs.readline()
 			while(line):
 				content = line.split('=')
-				if(content[0] != not_company):
+				if(content[0] != not_company and content[0] != 'default'):
 					companies.append((content[1].split(':')[0], int(content[1].split(':')[1])))
 				line = file_addrs.readline()
+		# print(companies)
+		# sys.exit()
 		return companies
 		
 	# Função principal, onde o servidor irá receber as conexões
@@ -167,12 +176,14 @@ class Main:
 		# if(path == 'to-lead' and not self.ready_lead):
 		if(path == 'to-lead' and not self.led):
 			# Adicionando pedido para liderar no começo da fila
-			self.queue_request.appendleft({'client': client, 'path': path, 'data': data})
+			self.queue_response.appendleft({'client': client, 'path': path, 'data': data})
 		elif(path == 'get-routes' and ((not self.led and self.leading) or self.starting)):
 			# Adicionando pedido dos liderados no começo da fila
-			self.queue_request.appendleft({'client': client, 'path': path, 'data': data})	
+			self.queue_response.appendleft({'client': client, 'path': path, 'data': data})	
 		elif(not (path in ['get-routes', 'to-lead'])):
 			# Adicionando a requisição no final da fila de requisições
+			self.queue_request.append({'client': client, 'path': path, 'data': data})
+		elif(path == 'to-lead'):
 			self.queue_request.append({'client': client, 'path': path, 'data': data})
 		else:
 			self.sendToClientError(client, 'Acho que estamos com alguns problemas...')
@@ -181,7 +192,7 @@ class Main:
 	def cleanRequest(self, request_raw):
 		path = ''
 		data = None
-		
+		# print(request_raw)
 		request_clean = str(request_raw.decode('utf-8'))
 		# print(request_clean)
 		content_parts = request_clean.split(' ')
@@ -203,6 +214,15 @@ class Main:
 				self.routing(request['client'], request['path'], request['data'])
 			elif(self.ready_lead and not self.led):
 				self.wantToLead()
+		return sys.exit()
+	
+	# Consome a fila de requisições
+	def queueResponse(self):
+		while not (self.close):
+			if(len(self.queue_response) > 0):
+				# print('conn: ' + str(len(self.queue_response)))
+				request = self.queue_response.popleft()
+				self.routing(request['client'], request['path'], request['data'])
 		return sys.exit()
 		
 	# Função responsável pelo roteamente, identifica os metodos e as rotas requisitadas
@@ -261,31 +281,38 @@ class Main:
 		self.led = True
 		print('{}:{} NOVO LIDER'.format(data['host'], data['port']))
 		self.leader = (data['host'], data['port'])
+		myroutes = self.db.getRoutes({})
+		print(myroutes)
+		self.sendToClientOk(client, {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': myroutes})
 		client.close()
-		leader_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		leader_receive.connect(self.leader)
-		leader_receive.sendall(("get-routes ").encode('utf-8'))
-		response = leader_receive.recv(8192)
-		# print(response)
-		path, data = self.cleanRequest(response)
-		self.starting = False
-		# print('DATA:------>', data)
-		self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
-		companies = []
-		companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
-		companies.append(data['data']['routes'])
-		self.all_routes['companies'] = companies
-		# print('<------------->')
-		# print(self.all_routes)
-		# print('<------------->')
-		leader_receive.close()
+		time.sleep(5)
+		success = False
+		count = 0
+		while(not success and count <= 10):
+			try:
+				leader_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				leader_receive.connect(self.leader)
+				leader_receive.sendall(("get-routes ").encode('utf-8'))
+				response = leader_receive.recv(8192)
+				path, data = self.cleanRequest(response)
+				self.starting = False
+				self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
+				companies = []
+				companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': myroutes})
+				companies.append(data['data']['routes'])
+				self.all_routes['companies'] = companies
+				leader_receive.close()
+				success = True
+			except:
+				count = count + 1
+				success = False
+				time.sleep(2)
 		self.led = False
 	
 	# Enviado as rotas para os liderados
 	def sendRoutesToLed(self, client):
 		self.starting = False
-		routes = self.db.getRoutes({})
-		self.sendToClientOk(client, {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': routes})
+		self.sendToClientOk(client, {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
 		self.count_companies = self.count_companies - 1
 		if(self.count_companies <= 0):
 			self.leading = False
@@ -293,20 +320,36 @@ class Main:
 	# Quero ser líder!
 	def wantToLead(self):
 		if not self.led:
-			companies = self.readAddressNot(self.me)
-			self.count_companies = len(companies)
+			companies_addrs = self.readAddressNot(self.me)
+			self.count_companies = len(companies_addrs)
 			self.leading = True
 			self.leader = (self.addr[0], self.addr[1])
-			for company in companies:
+			
+			self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
+			companies = []
+			companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
+
+			for company in companies_addrs:
+				print('-----------------')
 				print('CONECTANDO: {}:{}'.format(company[0], company[1]))
+				
 				try:
 					led_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 					led_receive.connect(company)
 					led_receive.sendall(('to-lead {}'.format(json.dumps({'host': self.addr[0], 'port': self.addr[1]}))).encode('utf-8'))
+					response = led_receive.recv(8192)
+					path, data = self.cleanRequest(response)
+					companies.append({'company': data['data']['company'], 'host': data['data']['host'], 'port': data['data']['port'], 'routes': data['data']['routes']})
+					# companies.append(data['data']['routes'])
 					led_receive.close()
 				except Exception as e:
 					print('Impossivel de enviar requerimento: {}'.format(e))
 					self.count_companies = self.count_companies - 1
+			
+			self.all_routes['companies'] = companies	
+			print(self.all_routes)
+			print('-----------------')
+			self.ready_send = True
 			self.ready_lead = False
 			
 	
@@ -328,10 +371,10 @@ class Main:
 	
 	# Pegar todas as rotas
 	def getAllRoutes(self, client):
-		self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
-		companies = []
-		companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
-		self.all_routes['companies'] = companies
+		if(self.all_routes == None):
+			self.all_routes = {'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'companies': None}
+			companies = []
+			companies.append({'company': self.me, 'host': self.addr[0], 'port': self.addr[1], 'routes': self.db.getRoutes({})})
 		return self.sendToClientOk(client, self.all_routes)
 		
 	def findRoute(self, client, data):

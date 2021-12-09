@@ -48,12 +48,14 @@ include_once('controllers/routes.php');
 	<div class="m-0">
 		<div class="row bg-white p-3 rounded shadow-sm mb-5">
 			<div class="row text-center mb-3">
-				<div class="col-md-10 text-center">
+				<div class="col-md-12 text-center">
 					<p class="h2 m-0">
 						123voos
+
+						<i class="fa fa-plane text-dark" style="margin-top: 10px;"></i>
 					</p>
 				</div>
-				<div class="col-md-2 row">
+				<!-- <div class="col-md-2 row">
 					<div class="col-md-10">
 						<label class="h5 m-0 mt-3">
 						</label>
@@ -63,7 +65,7 @@ include_once('controllers/routes.php');
 							<i class="fa fa-sign-out text-dark" style="margin-top: 10px;"></i>
 						</label>
 					</div>
-				</div>
+				</div> -->
 				<div hidden id="alert-error" class="alert alert-danger mt-3" role="alert">
 					<p id="alert-text-error" class="h5 m-0"></p>
 				</div>
@@ -79,16 +81,25 @@ include_once('controllers/routes.php');
 								<select id="start" required name="start">
 									<option selected id="default" value=""></option>
 									<?php
+									$cities = array();
 									foreach ($all_routes->companies as $company) {
 										foreach ($company->routes as $key => $route) {
+											if (!in_array($route->start->city, $cities)) {
+												$cities[] = $route->start->city;
 									?>
-											<option type="<?php echo 'start'; ?>" cep="<?php echo $route->start->cep; ?>" host="<?php echo $company->host; ?>" port="<?php echo $company->port; ?>" value="<?php echo $route->start->id; ?>">
-												<?php echo $route->start->city . ' | ' . $route->start->cep . ' | ' . $route->start->name; ?>
-											</option>
-											<option type="<?php echo 'end'; ?>" cep="<?php echo $route->end->cep; ?>" host="<?php echo $company->host; ?>" port="<?php echo $company->port; ?>" value="<?php echo $route->end->id; ?>">
-												<?php echo $route->end->city . ' | ' . $route->end->cep . ' | ' . $route->end->name; ?>
-											</option>
+												<option type="<?php echo 'start'; ?>" cep="<?php echo $route->start->cep; ?>" host="<?php echo $company->host; ?>" port="<?php echo $company->port; ?>" value="<?php echo $route->start->id; ?>">
+												<?php echo $route->start->city;
+											}
+											if (!in_array($route->end->city, $cities)) {
+												$cities[] = $route->end->city; // . ' | ' . $route->start->cep . ' | ' . $route->start->name; 
+												?>
+												</option>
+												<option type="<?php echo 'end'; ?>" cep="<?php echo $route->end->cep; ?>" host="<?php echo $company->host; ?>" port="<?php echo $company->port; ?>" value="<?php echo $route->end->id; ?>">
+													<?php echo $route->end->city; // . ' | ' . $route->end->cep . ' | ' . $route->end->name; 
+													?>
+												</option>
 									<?php }
+										}
 									} ?>
 								</select>
 							</div>
@@ -144,7 +155,7 @@ include_once('controllers/routes.php');
 				}
 			});
 		});
-		$('#btn-find').click((event) => {
+		$('#btn-find-d').click((event) => {
 			// console.log(($('#start').find(':selected').attr('cep')))
 			$.ajax({
 				type: "GET",
@@ -153,6 +164,26 @@ include_once('controllers/routes.php');
 					$('#loading').removeAttr('hidden');
 				},
 				success: function(data) {
+					$('#loading').attr('hidden', 'true');
+					$('#list-routes').html(data);
+				},
+				error: (data) => {
+					$('#loading').removeAttr('hidden');
+
+				}
+			});
+		});
+		$('#btn-find').click((event) => {
+			// console.log(($('#start').find(':selected').attr('cep')))
+			$.ajax({
+				type: "GET",
+				url: "list_routes_cep.php?cep_start=" + $('#start').find(':selected').attr('cep') + '&cep_end=' + $('#end').find(':selected').attr('cep'),
+				beforeSend: (data) => {
+					$('#loading').removeAttr('hidden');
+					$('#list-routes').attr('hidden', 'true');
+				},
+				success: function(data) {
+					$('#list-routes').removeAttr('hidden');
 					$('#loading').attr('hidden', 'true');
 					$('#list-routes').html(data);
 				},

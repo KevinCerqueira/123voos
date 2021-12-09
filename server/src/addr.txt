@@ -1,3 +1,4 @@
-anil=localhost:8000
-goal=localhost:8100
+default=localhost:80
 latim=localhost:8200
+goal=localhost:8100
+anil=localhost:8000

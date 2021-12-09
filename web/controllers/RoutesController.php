@@ -25,12 +25,12 @@ class RoutesController
     }
 
     /** Coneceta no servidor */
-    private function connect($addr = null)
+    private function connect(Array $addr = null)
     {
 		$addr = $addr ?? $this->getLeader();
         $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 
-        socket_connect($this->socket, $addr['host'], $addr['port']);
+        socket_connect($this->socket, $addr['host'], intval($addr['port']));
     }
 
     /** Fecha a conexão com o servidor */
@@ -56,9 +56,9 @@ class RoutesController
     }
 
     /** Confirma a rota */
-    public function confirmRoute(String $route)
+    public function confirmRoute(String $route, Array $addr)
     {
-        $this->connect();
+        $this->connect($addr);
 
         $response = $this->send("confirm-route", ['route' => $route]);
 
@@ -66,9 +66,9 @@ class RoutesController
     }
     
     /** Desconfirma a rota */
-    public function disconfirmRoute(String $route)
+    public function disconfirmRoute(String $route, Array $addr)
     {
-        $this->connect();
+        $this->connect($addr);
 
         $response = $this->send("disconfirm-route", ['route' => $route]);
 
@@ -101,6 +101,7 @@ class RoutesController
     /** Retorna todas as rotas */
     public function getAll()
     {
+        // $this->connect(['host'=> 'localhost', 'port'=> 8100]);
         $this->connect();
         return $this->send("get-all-routes");
     }
